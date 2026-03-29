@@ -5,7 +5,7 @@ This project focuses on identifying and backtesting mean-reverting currency pair
 ## Project Structure
 
 - `pair_screener.py`: Screens for cointegrated pairs from a set of tickers.
-- `recent_stability.py`: Evaluates the stability of the identified pairs using rolling window analysis.
+- `recent_stability.py`: Validates the cointegration of screened pairs over a recent data window to ensure the relationship still holds.
 - `kalman_batch_backtest.py`: Runs a batch backtest on stable pairs using a Kalman filter trading strategy.
 
 ## Workflow
