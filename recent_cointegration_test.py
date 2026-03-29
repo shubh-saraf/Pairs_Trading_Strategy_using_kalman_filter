@@ -71,7 +71,7 @@ def main():
     
     final_stability_summary = []
     
-    print(f"\nAnalyzing Cointegration Stability for Recent Window: {RECENT_START} to {RECENT_END}")
+    print(f"\nAnalyzing Recent Cointegration for Window: {RECENT_START} to {RECENT_END}")
     print("-" * 115)
     
     for pair in pairs_list:
@@ -135,12 +135,12 @@ def main():
     if not summary_df.empty:
         summary_df = summary_df.sort_values("Half_Life")
         print("\n" + "#"*100)
-        print("FINAL RECENT WINDOW STABILITY SUMMARY (Jul-Dec 2024)")
+        print("FINAL RECENT WINDOW COINTEGRATION SUMMARY (Jul-Dec 2024)")
         print("#"*100)
         print(summary_df[["Pair", "Sector", "Trace_Pass", "Hedge_Ratio", "Half_Life", "Verdict"]].to_string(index=False))
 
         # Save CSVs
-        summary_df.to_csv("recent_stability_results.csv", index=False)
+        summary_df.to_csv("recent_cointegration_results.csv", index=False)
         
         # Stable pairs CSV
         stable_pairs_df = summary_df[summary_df['Verdict'] == "STABLE"].copy()
@@ -152,10 +152,10 @@ def main():
             on=["Stock1", "Stock2"],
             suffixes=('', '_Recent')
         )
-        out_stable.to_csv("stable_pairs.csv", index=False)
+        out_stable.to_csv("recently_cointegrated_pairs.csv", index=False)
         
-        print(f"\nRecent window results saved to recent_stability_results.csv")
-        print(f"Stable pairs saved to stable_pairs.csv (Count: {len(out_stable)})")
+        print(f"\nRecent window results saved to recent_cointegration_results.csv")
+        print(f"Recently cointegrated pairs saved to recently_cointegrated_pairs.csv (Count: {len(out_stable)})")
 
         # Save to TXT
         save_stability_results_to_txt(summary_df)
@@ -164,9 +164,9 @@ def main():
 
 def save_stability_results_to_txt(summary_df):
     """Saves the stability results for the recent window to a formatted text file with separate tables."""
-    with open("recent_stability_results.txt", "w") as f:
+    with open("recent_cointegration_results.txt", "w") as f:
         f.write("=" * 115 + "\n")
-        f.write(f"      PAIR RECENT WINDOW STABILITY CHECK SUMMARY ({RECENT_START} to {RECENT_END})\n")
+        f.write(f"      PAIR RECENT WINDOW COINTEGRATION CHECK SUMMARY ({RECENT_START} to {RECENT_END})\n")
         f.write("=" * 115 + "\n\n")
         
         # Helper to write table
@@ -185,7 +185,7 @@ def save_stability_results_to_txt(summary_df):
         unstable_df = summary_df[summary_df['Verdict'] == "UNSTABLE"].sort_values("Half_Life")
 
         if not stable_df.empty:
-            write_table(stable_df, "STABLE PAIRS (Passing all checks)")
+            write_table(stable_df, "RECENTLY COINTEGRATED PAIRS (Passing all checks)")
         else:
             f.write("No stable pairs found.\n\n")
 
@@ -195,10 +195,10 @@ def save_stability_results_to_txt(summary_df):
             f.write("No unstable pairs found.\n\n")
             
         f.write("=" * 115 + "\n")
-        f.write(f"SUMMARY: {len(summary_df)} pairs tested, {len(stable_df)} stable pairs found.\n")
+        f.write(f"SUMMARY: {len(summary_df)} pairs tested, {len(stable_df)} recently cointegrated pairs found.\n")
         f.write("Verdict criteria: Johansen Trace > Critical @ 5% AND Hedge Ratio in [0.1, 10].\n")
 
-    print("Stability results successfully saved to recent_stability_results.txt")
+    print("Recent cointegration results successfully saved to recent_cointegration_results.txt")
 
 if __name__ == "__main__":
     main()

@@ -184,12 +184,12 @@ def run_backtest(df_total):
 
 def main():
     try:
-        stable_pairs = pd.read_csv('stable_pairs.csv')
+        stable_pairs = pd.read_csv('recently_cointegrated_pairs.csv')
     except FileNotFoundError:
-        print("Error: stable_pairs.csv not found.")
+        print("Error: recently_cointegrated_pairs.csv not found.")
         return
 
-    print(f"Loaded {len(stable_pairs)} stable pairs for Kalman backtesting.")
+    print(f"Loaded {len(stable_pairs)} recently cointegrated pairs for Kalman backtesting.")
     
     summary_results = []
     
