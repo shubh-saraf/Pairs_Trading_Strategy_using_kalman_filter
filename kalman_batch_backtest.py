@@ -11,10 +11,16 @@ import sys
 
 INITIAL_CAPITAL = 1_000_000
 POSITION_SIZE = 500_000
-TIME_STOP_DAYS = 45
+# TIME_STOP_DAYS = 45 # Replaced by dynamic 2x Half-Life
 EXIT_STOP_LOSS_SIGMA = 3
 ENTRY_THRESHOLD_SIGMA = 1
 COST_RATE = 0.00075 # 0.075% per turn
+
+# Periods
+WARMUP_START = "2024-01-01"
+WARMUP_END = "2024-12-31"
+TRADING_START = "2025-01-01"
+TRADING_END = "2026-03-31"
 
 def calculate_costs(trade_value):
     return COST_RATE * trade_value
@@ -24,13 +30,13 @@ def calculate_costs(trade_value):
 # =============================================================================
 
 def run_kalman_filter(stock1_total, stock2_total, dates):
-    # Split into 2024 warmup for Ve estimation
-    stock1_2024 = stock1_total[dates <= "2024-12-31"]
-    stock2_2024 = stock2_total[dates <= "2024-12-31"]
+    # Split into warmup for Ve estimation
+    stock1_warmup = stock1_total[dates <= WARMUP_END]
+    stock2_warmup = stock2_total[dates <= WARMUP_END]
     
     # Estimate Ve using OLS
-    x_warmup = sm.add_constant(stock2_2024.values)
-    y_warmup = stock1_2024.values
+    x_warmup = sm.add_constant(stock2_warmup.values)
+    y_warmup = stock1_warmup.values
     model = sm.OLS(y_warmup, x_warmup).fit()
     ve_estimated = np.var(model.resid)
 
@@ -62,7 +68,7 @@ def run_kalman_filter(stock1_total, stock2_total, dates):
         beta = beta + k * e_t
         p = r - np.outer(k, x_t) @ r
         
-        period = 'warmup' if dates[t] <= pd.Timestamp('2024-12-31') else 'trading'
+        period = 'warmup' if dates[t] <= pd.Timestamp(WARMUP_END) else 'trading'
         
         results.append({
             'date': dates[t],
@@ -82,7 +88,7 @@ def run_kalman_filter(stock1_total, stock2_total, dates):
 # 3. BACKTEST ENGINE
 # =============================================================================
 
-def run_backtest(df_total):
+def run_backtest(df_total, time_stop_days):
     trading_res = df_total[df_total['period'] == 'trading'].copy().reset_index()
     
     position = 0 # 1=long, -1=short
@@ -119,7 +125,7 @@ def run_backtest(df_total):
                (position == -1 and spread > EXIT_STOP_LOSS_SIGMA * sqrt_Q):
                 exit_type = 'stop_loss'
                 exit_triggered = True
-            elif days_held > TIME_STOP_DAYS:
+            elif days_held > time_stop_days:
                 exit_type = 'time_stop'
                 exit_triggered = True
             elif (position == 1 and spread > 0) or (position == -1 and spread < 0):
@@ -199,7 +205,7 @@ def main():
         print(f"\n[{i+1}/{len(stable_pairs)}] Testing {s1}/{s2}...")
         
         # 4a. Download
-        df_prices = yf.download(tickers, start="2024-01-01", end="2025-12-31", progress=False)['Close']
+        df_prices = yf.download(tickers, start=WARMUP_START, end=TRADING_END, progress=False)['Close']
         df_prices = df_prices.dropna()
         
         if df_prices.empty:
@@ -209,8 +215,10 @@ def main():
         # 4b. Kalman
         kalman_df = run_kalman_filter(df_prices[f"{s1}.NS"], df_prices[f"{s2}.NS"], df_prices.index)
         
-        # 4c. Backtest
-        trades, final_cap = run_backtest(kalman_df)
+        # 4c. Backtest (Time Stop = 3.32 * Half-Life)
+        pair_half_life = row['Half_Life_Days']
+        dynamic_time_stop = round(3.32 * pair_half_life)
+        trades, final_cap = run_backtest(kalman_df, dynamic_time_stop)
         
         if not trades:
             summary_results.append({
@@ -254,7 +262,7 @@ def main():
     
     with open('kalman_backtest_summary.txt', 'w', encoding='utf-8') as f:
         f.write("=" * 105 + "\n")
-        f.write("      KALMAN FILTER PAIRS TRADING BATCH BACKTEST RESULTS (2025)\n")
+        f.write(f"      KALMAN FILTER PAIRS TRADING BATCH BACKTEST RESULTS ({TRADING_START[:4]})\n")
         f.write("=" * 105 + "\n\n")
         
         header = f"{'Pair':<22} | {'Return%':>8} | {'CAGR%':>8} | {'Sharpe':>7} | {'MaxDD%':>7} | {'Trades':>6} | {'Win%':>6} | {'Status':<10}\n"
@@ -266,7 +274,7 @@ def main():
             f.write(line)
             
         f.write("\n" + "=" * 105 + "\n")
-        f.write(f"Parameters: Entry=1σ, Exit=0, StopLoss=3σ, TimeStop=45D, Rebalancing=10% Beta Change\n")
+        f.write(f"Parameters: Entry=1σ, Exit=0, StopLoss=3σ, TimeStop=3.32x Half-Life, Rebalancing=10% Beta Change\n")
 
     print("\nBatch backtest summary saved to kalman_backtest_summary.txt")
 

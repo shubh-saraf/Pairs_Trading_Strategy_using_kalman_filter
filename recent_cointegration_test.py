@@ -6,6 +6,10 @@ from statsmodels.tsa.vector_ar.vecm import coint_johansen
 import itertools
 import os
 
+# Global date range for both data download and testing window
+START_DATE = "2024-01-01"
+END_DATE = "2024-12-31"
+
 # =============================================================================
 # 1. SETUP & DATA DOWNLOAD
 # =============================================================================
@@ -16,11 +20,9 @@ def download_all_data(pairs):
         [p[1] + '.NS' for p in pairs]
     ))
     
-    print(f"Downloading {len(all_tickers)} unique tickers for recent check...")
-    START = "2023-01-01"
-    END = "2024-12-31"
+    print(f"Downloading {len(all_tickers)} unique tickers for recent check from {START_DATE} to {END_DATE}...")
     
-    raw = yf.download(all_tickers, start=START, end=END, auto_adjust=True, progress=False)['Close']
+    raw = yf.download(all_tickers, start=START_DATE, end=END_DATE, auto_adjust=True, progress=False)['Close']
     log_prices = np.log(raw)
     return log_prices
 
@@ -53,9 +55,6 @@ def calculate_half_life(spread):
 # 3. RECENT WINDOW STABILITY PIPELINE (Last 6 Months)
 # =============================================================================
 
-RECENT_START = "2024-01-01"
-RECENT_END = "2024-12-31"
-
 def main():
     # Load screening results
     try:
@@ -71,7 +70,7 @@ def main():
     
     final_stability_summary = []
     
-    print(f"\nAnalyzing Recent Cointegration for Window: {RECENT_START} to {RECENT_END}")
+    print(f"\nAnalyzing Recent Cointegration for Window: {START_DATE} to {END_DATE}")
     print("-" * 115)
     
     for pair in pairs_list:
@@ -80,7 +79,7 @@ def main():
         
         try:
             # Slice data for the recent window
-            data_window = log_prices[[s1_t, s2_t]].loc[RECENT_START:RECENT_END].dropna()
+            data_window = log_prices[[s1_t, s2_t]].loc[START_DATE:END_DATE].dropna()
             
             if len(data_window) < 60:
                 print(f"Skipping {s1}-{s2}: Insufficient data ({len(data_window)} points).")
@@ -166,7 +165,7 @@ def save_stability_results_to_txt(summary_df):
     """Saves the stability results for the recent window to a formatted text file with separate tables."""
     with open("recent_cointegration_results.txt", "w") as f:
         f.write("=" * 115 + "\n")
-        f.write(f"      PAIR RECENT WINDOW COINTEGRATION CHECK SUMMARY ({RECENT_START} to {RECENT_END})\n")
+        f.write(f"      PAIR RECENT WINDOW COINTEGRATION CHECK SUMMARY ({START_DATE} to {END_DATE})\n")
         f.write("=" * 115 + "\n\n")
         
         # Helper to write table
